@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ESP32 AI Voice Control</title>
+
+<style>
+
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#111827;
+    color:white;
+    text-align:center;
+}
+
+.container{
+    max-width:700px;
+    margin:auto;
+    padding:30px;
+}
+
+h1{
+    font-size:38px;
+}
+
+.card{
+    background:#1f2937;
+    border-radius:15px;
+    padding:20px;
+    margin-top:20px;
+}
+
+button{
+    border:none;
+    border-radius:10px;
+    padding:15px 30px;
+    font-size:18px;
+    cursor:pointer;
+    margin:10px;
+}
+
+.green{
+    background:#16a34a;
+    color:white;
+}
+
+.red{
+    background:#dc2626;
+    color:white;
+}
+
+.blue{
+    background:#2563eb;
+    color:white;
+}
+
+.status{
+    font-size:22px;
+    margin-top:20px;
+    color:#22c55e;
+}
+
+.command{
+    font-size:24px;
+    margin-top:10px;
+    color:#fbbf24;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🤖 MIST ESP32 Project</h1>
+
+<div class="card">
+
+<h2>Motor</h2>
+
+<h3 id="motorStatus" style="color:red;">Status: OFF</h3>
+
+<button class="green" onclick="sendCommand('/motor/on'); updateMotorStatus(true);">
+    Motor ON
+</button>
+
+<button class="red" onclick="sendCommand('/motor/off'); updateMotorStatus(false);">
+    Motor OFF
+</button>
+
+</div>
+
+<div class="card">
+
+    
+<h2>LED</h2>
+
+<h3 id="ledStatus" style="color:red;">Status: OFF</h3>
+
+<button class="green" onclick="sendCommand('/led/on'); updateLedStatus(true);">
+    LED ON
+</button>
+
+<button class="red" onclick="sendCommand('/led/off'); updateLedStatus(false);">
+    LED OFF
+</button>
+
+</div>
+
+<div class="card">
+
+<button class="blue" onclick="startListening()">
+🎤 Start AI Assistant
+</button>
+
+<button class="red" onclick="stopListening()">
+🛑 Stop Assistant
+</button>
+
+<div class="status" id="status">
+Ready
+</div>
+
+<div class="command" id="spoken">
+...
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+//================== ESP32 IP ==================
+
+const espIP = "192.168.0.199";
+
+//==============================================
+
+let assistantRunning = false;
+let isListening = false;
+
+//==============================================
+
+function sendCommand(path){
+
+    fetch("http://" + espIP + path)
+    .then(response=>{
+        console.log("Command Sent");
+    })
+    .catch(error=>{
+        console.log(error);
+    });
+
+}
+
+//==============================================
+
+const SpeechRecognition =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+const recognition = new SpeechRecognition();
+
+recognition.lang = "en-US";
+recognition.interimResults = false;
+recognition.continuous = false;
+recognition.maxAlternatives = 1;
+
+//==============================================
+
+function startListening(){
+
+    if(assistantRunning) return;
+
+    assistantRunning = true;
+
+    document.getElementById("status").innerHTML =
+    "🎤 AI Assistant Listening...";
+
+    recognition.start();
+
+}
+
+//==============================================
+
+function stopListening(){
+
+    assistantRunning = false;
+
+    recognition.stop();
+
+    document.getElementById("status").innerHTML =
+    "Assistant Stopped";
+
+}
+
+//==============================================
+
+recognition.onstart = function(){
+
+    isListening = true;
+
+};
+
+//==============================================
+
+recognition.onend = function(){
+
+    isListening = false;
+
+    if(assistantRunning){
+
+        setTimeout(function(){
+
+            recognition.start();
+
+        },500);
+
+    }
+
+};
+
+//==============================================
+
+recognition.onresult = function(event){
+
+    let text =
+    event.results[0][0].transcript.toLowerCase();
+
+    document.getElementById("spoken").innerHTML =
+    "🗣 " + text;
+
+    console.log(text);
+
+    if(text.includes("motor on") ||
+       text.includes("turn on motor")){
+
+        sendCommand("/motor/on");
+        updateMotorStatus(true);
+        speak("Motor turned on");
+
+    }
+
+    else if(text.includes("motor close") ||
+            text.includes("turn off motor")){
+
+        sendCommand("/motor/off");
+         updateMotorStatus(false);        
+        speak("Motor turned off");
+
+    }
+
+    else if(text.includes("led on") ||
+            text.includes("light on")){
+
+        sendCommand("/led/on");
+        updateLedStatus(true);
+
+        speak("LED turned on");
+
+    }
+
+    else if(text.includes("led close") ||
+            text.includes("light off")){
+
+        sendCommand("/led/off");
+        updateLedStatus(false);
+            
+        speak("LED turned off");
+
+    }
+
+    else{
+
+        speak("Sorry, I didn't understand.");
+
+    }
+
+};
+
+//==============================================
+
+recognition.onerror = function(event){
+
+    console.log(event.error);
+
+    document.getElementById("status").innerHTML =
+    event.error;
+
+    if(event.error=="no-speech")
+        return;
+
+    if(event.error=="aborted")
+        return;
+
+};
+
+//==============================================
+
+function speak(text){
+
+    recognition.stop();
+
+    const msg = new SpeechSynthesisUtterance();
+
+    msg.text = text;
+
+    msg.rate = 1;
+
+    msg.pitch = 1;
+
+    msg.onend = function(){
+
+        if(assistantRunning){
+
+            recognition.start();
+
+        }
+
+    }
+
+    speechSynthesis.speak(msg);
+
+}
+function updateLedStatus(isOn){
+
+    const status = document.getElementById("ledStatus");
+
+    if(isOn){
+        status.innerHTML = "Status: 🟢 ON";
+        status.style.color = "#22c55e";
+    }
+    else{
+        status.innerHTML = "Status: 🔴 OFF";
+        status.style.color = "#ef4444";
+    }
+
+}
+function updateMotorStatus(isOn){
+
+    const status = document.getElementById("motorStatus");
+
+    if(isOn){
+        status.innerHTML = "Status: 🟢 ON";
+        status.style.color = "#22c55e";
+    }
+    else{
+        status.innerHTML = "Status: 🔴 OFF";
+        status.style.color = "#ef4444";
+    }
+
+}
+</script>
+
+</body>
+
+</html>
