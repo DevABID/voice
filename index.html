@@ -78,7 +78,7 @@ button{
 
 <div class="container">
 
-<h1>🤖 MIST ESP32 Project</h1>
+<h1>🤖 MIST ESP32 Home Automation</h1>
 
 <div class="card">
 
@@ -139,7 +139,10 @@ Ready
 
 //================== ESP32 IP ==================
 
-const espIP = "192.168.0.199";
+const espIPs = [
+    "192.168.0.199",
+    "10.41.39.179"
+];
 
 //==============================================
 
@@ -148,16 +151,42 @@ let isListening = false;
 
 //==============================================
 
-function sendCommand(path){
+// function sendCommand(path){
 
-    fetch("http://" + espIP + path)
-    .then(response=>{
-        console.log("Command Sent");
-    })
-    .catch(error=>{
-        console.log(error);
+//     fetch("http://" + espIP + path)
+//     .then(response=>{
+//         console.log("Command Sent");
+//     })
+//     .catch(error=>{
+//         console.log(error);
+//     });
+
+// }
+
+    function sendCommand(path) {
+
+    let success = false;
+
+    espIPs.forEach(ip => {
+
+        fetch("http://" + ip + path)
+        .then(response => {
+
+            if (response.ok && !success) {
+
+                success = true;
+
+                console.log("Command sent through:", ip);
+            }
+
+        })
+        .catch(error => {
+
+            console.log("ESP32 not available at:", ip);
+
+        });
+
     });
-
 }
 
 //==============================================
