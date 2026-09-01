@@ -135,58 +135,55 @@ Ready
 
 </div>
 
+
 <script>
 
-//================== ESP32 IP ==================
+//==================================================
+// ESP32 IP ADDRESS
+// Samsung S21 FE Hotspot
+//==================================================
 
 const espIP = "10.41.39.179";
 
-//==============================================
+//==================================================
 
 let assistantRunning = false;
 let isListening = false;
 
-//==============================================
+//==================================================
+// SEND COMMAND TO ESP32
+//==================================================
 
-// function sendCommand(path){
+function sendCommand(path){
 
-//     fetch("http://" + espIP + path)
-//     .then(response=>{
-//         console.log("Command Sent");
-//     })
-//     .catch(error=>{
-//         console.log(error);
-//     });
+    fetch("http://" + espIP + path)
 
-// }
+    .then(response => {
 
-    function sendCommand(path) {
+        if(response.ok){
 
-    let success = false;
+            console.log("Command Sent:", path);
 
-    espIPs.forEach(ip => {
+        }
+        else{
 
-        fetch("http://" + ip + path)
-        .then(response => {
+            console.log("ESP32 Error");
 
-            if (response.ok && !success) {
+        }
 
-                success = true;
+    })
 
-                console.log("Command sent through:", ip);
-            }
+    .catch(error => {
 
-        })
-        .catch(error => {
-
-            console.log("ESP32 not available at:", ip);
-
-        });
+        console.log("ESP32 Connection Error:", error);
 
     });
+
 }
 
-//==============================================
+//==================================================
+// SPEECH RECOGNITION
+//==================================================
 
 const SpeechRecognition =
 window.SpeechRecognition ||
@@ -199,11 +196,14 @@ recognition.interimResults = false;
 recognition.continuous = false;
 recognition.maxAlternatives = 1;
 
-//==============================================
+//==================================================
+// START ASSISTANT
+//==================================================
 
 function startListening(){
 
-    if(assistantRunning) return;
+    if(assistantRunning)
+        return;
 
     assistantRunning = true;
 
@@ -214,7 +214,9 @@ function startListening(){
 
 }
 
-//==============================================
+//==================================================
+// STOP ASSISTANT
+//==================================================
 
 function stopListening(){
 
@@ -227,15 +229,22 @@ function stopListening(){
 
 }
 
-//==============================================
+//==================================================
+// SPEECH START
+//==================================================
 
 recognition.onstart = function(){
 
     isListening = true;
 
+    document.getElementById("status").innerHTML =
+    "🎤 Listening...";
+
 };
 
-//==============================================
+//==================================================
+// SPEECH END
+//==================================================
 
 recognition.onend = function(){
 
@@ -253,7 +262,9 @@ recognition.onend = function(){
 
 };
 
-//==============================================
+//==================================================
+// VOICE COMMAND PROCESSING
+//==================================================
 
 recognition.onresult = function(event){
 
@@ -263,45 +274,94 @@ recognition.onresult = function(event){
     document.getElementById("spoken").innerHTML =
     "🗣 " + text;
 
-    console.log(text);
+    console.log("Voice Command:", text);
 
-    if(text.includes("motor on") ||
-       text.includes("turn on motor")){
+
+    //================================================
+    // MOTOR ON
+    //================================================
+
+    if(
+        text.includes("motor on") ||
+        text.includes("turn on motor") ||
+        text.includes("switch on motor")
+    ){
 
         sendCommand("/motor/on");
+
         updateMotorStatus(true);
+
         speak("Motor turned on");
 
     }
 
-    else if(text.includes("motor close") ||
-            text.includes("turn off motor")){
+
+    //================================================
+    // MOTOR OFF
+    //================================================
+
+    else if(
+        text.includes("motor off") ||
+        text.includes("motor close") ||
+        text.includes("turn off motor") ||
+        text.includes("switch off motor")
+    ){
 
         sendCommand("/motor/off");
-         updateMotorStatus(false);        
+
+        updateMotorStatus(false);
+
         speak("Motor turned off");
 
     }
 
-    else if(text.includes("led on") ||
-            text.includes("light on")){
+
+    //================================================
+    // LED ON
+    //================================================
+
+    else if(
+        text.includes("led on") ||
+        text.includes("light on") ||
+        text.includes("turn on led") ||
+        text.includes("turn on light") ||
+        text.includes("switch on led")
+    ){
 
         sendCommand("/led/on");
+
         updateLedStatus(true);
 
         speak("LED turned on");
 
     }
 
-    else if(text.includes("led close") ||
-            text.includes("light off")){
+
+    //================================================
+    // LED OFF
+    //================================================
+
+    else if(
+        text.includes("led off") ||
+        text.includes("led close") ||
+        text.includes("light off") ||
+        text.includes("turn off led") ||
+        text.includes("turn off light") ||
+        text.includes("switch off led")
+    ){
 
         sendCommand("/led/off");
+
         updateLedStatus(false);
-            
+
         speak("LED turned off");
 
     }
+
+
+    //================================================
+    // UNKNOWN COMMAND
+    //================================================
 
     else{
 
@@ -311,30 +371,35 @@ recognition.onresult = function(event){
 
 };
 
-//==============================================
+//==================================================
+// SPEECH ERROR
+//==================================================
 
 recognition.onerror = function(event){
 
-    console.log(event.error);
+    console.log("Speech Error:", event.error);
 
     document.getElementById("status").innerHTML =
     event.error;
 
-    if(event.error=="no-speech")
+    if(event.error == "no-speech")
         return;
 
-    if(event.error=="aborted")
+    if(event.error == "aborted")
         return;
 
 };
 
-//==============================================
+//==================================================
+// TEXT TO SPEECH
+//==================================================
 
 function speak(text){
 
     recognition.stop();
 
-    const msg = new SpeechSynthesisUtterance();
+    const msg =
+    new SpeechSynthesisUtterance();
 
     msg.text = text;
 
@@ -350,39 +415,74 @@ function speak(text){
 
         }
 
-    }
+    };
 
     speechSynthesis.speak(msg);
 
 }
+
+//==================================================
+// UPDATE LED STATUS
+//==================================================
+
 function updateLedStatus(isOn){
 
-    const status = document.getElementById("ledStatus");
+    const status =
+    document.getElementById("ledStatus");
 
     if(isOn){
-        status.innerHTML = "Status: 🟢 ON";
-        status.style.color = "#22c55e";
+
+        status.innerHTML =
+        "Status: 🟢 ON";
+
+        status.style.color =
+        "#22c55e";
+
     }
+
     else{
-        status.innerHTML = "Status: 🔴 OFF";
-        status.style.color = "#ef4444";
+
+        status.innerHTML =
+        "Status: 🔴 OFF";
+
+        status.style.color =
+        "#ef4444";
+
     }
 
 }
+
+//==================================================
+// UPDATE MOTOR STATUS
+//==================================================
+
 function updateMotorStatus(isOn){
 
-    const status = document.getElementById("motorStatus");
+    const status =
+    document.getElementById("motorStatus");
 
     if(isOn){
-        status.innerHTML = "Status: 🟢 ON";
-        status.style.color = "#22c55e";
+
+        status.innerHTML =
+        "Status: 🟢 ON";
+
+        status.style.color =
+        "#22c55e";
+
     }
+
     else{
-        status.innerHTML = "Status: 🔴 OFF";
-        status.style.color = "#ef4444";
+
+        status.innerHTML =
+        "Status: 🔴 OFF";
+
+        status.style.color =
+        "#ef4444";
+
     }
 
 }
+
 </script>
 
 </body>
